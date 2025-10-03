@@ -1,12 +1,30 @@
-# mnist_app_clean.py
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 import numpy as np
 from PIL import Image
 import tensorflow as tf
+from tensorflow.keras import backend as K
+import time
 
 MODEL_PATH = r"F:\Projects\MINST-CNN\mnist_cnn.h5"
-model = tf.keras.models.load_model(MODEL_PATH, compile=False)
+
+@st.cache_resource
+def load_mnist_model(path):
+    """Load Keras model once and cache it. Retry once if deserialization hits name_scope issues."""
+    try:
+        # try to load normally first
+        model = tf.keras.models.load_model(path, compile=False)
+        return model
+    except Exception as e:
+        # common failure: name_scope_stack pop error — try clearing session and retry
+        st.warning(f"Model load failed first try: {e}. Retrying after clearing session...")
+        K.clear_session()
+        time.sleep(0.5)   # small delay to let state settle
+        model = tf.keras.models.load_model(path, compile=False)
+        return model
+
+# use this cached loader to get the model
+model = load_mnist_model(MODEL_PATH)
 
 st.title("Handwritten Digit Recognition")
 
